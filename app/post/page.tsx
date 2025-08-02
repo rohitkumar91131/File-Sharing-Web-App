@@ -10,13 +10,17 @@ type searchParam = {
 type formData = {
     name : string
 }
+type User = {
+  id : string;
+  name : string
+}
 export default function PostPage({ params , searchParams}: { params: Promise<Param> ; searchParams : Promise<searchParam>}) {
-  const [allUser, setAllUser] = useState<any[]>([]);
+  const [allUser, setAllUser] = useState<User[]>([]);
   const [formData , setFormData ] = useState<formData>({
     name : ""
   })
   const { id } = use(params);
-  const {admin}  = use(searchParams);
+  const {admin : _admin}  = use(searchParams);
   async function fetchUser() {
     let res = await fetch("/api/users");
     const data = await res.json();

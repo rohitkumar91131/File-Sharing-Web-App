@@ -14,7 +14,7 @@ export async function GET(){
 
 export async function POST(req : Response){
     try{
-        let data =await req.json();
+        const data =await req.json();
         console.log(data);
         users.push({
             id : id,
