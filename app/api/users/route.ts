@@ -1,3 +1,5 @@
+import { NextRequest } from "next/server";
+
 const users = [
     {
         id : 1 , name :" Rohit kumar"
@@ -12,7 +14,7 @@ export async function GET(){
     return Response.json(users);
 }
 
-export async function POST(req : Response){
+export async function POST(req : NextRequest){
     try{
         const data =await req.json();
         console.log(data);
