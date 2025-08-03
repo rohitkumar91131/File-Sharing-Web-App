@@ -1,45 +1,48 @@
 "use client";
-import { useEffect, useState } from "react";
-import { io } from "socket.io-client";
+import Image from "next/image";
+import Link from "next/link";
 
-const socket = io(process.env.DATABASE_URL);
 
 export default function Page() {
-  const [messages, setMessages] = useState<string[]>([]);
 
-  useEffect(() => {
-    socket.on("connect", () => {
-      console.log("🔗 Connected:", socket.id);
-    });
 
-    socket.on("message", (msg: string) => {
-      setMessages((prev) => [...prev, msg]);
-    });
-
-    return () => {
-      socket.off("message");
-    };
-  }, []);
-
-  const sendMessage = () => {
-    console.log("Send")
-    socket.emit("message", "Hello from Next.js!");
-  };
 
   return (
-    <main className="p-6">
-      <h1 className="text-xl font-bold mb-4">⚡ Next.js + Socket.IO</h1>
-      <button
-        onClick={sendMessage}
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-      >
-        Send
-      </button>
-      <ul className="mt-4 space-y-2">
-        {messages.map((msg, i) => (
-          <li key={i} className="p-2 bg-gray-100 rounded text-black">{msg}</li>
-        ))}
-      </ul>
+    <main className="h-[100dvh] w-[100dvw] flex flex-col items-center justify-center">
+       <h1 className="relative inline-block text-black 
+          after:content-[''] after:absolute after:left-1/2 after:-translate-x-1/2 after:bottom-0 
+          after:w-0 after:h-[2px] after:bg-black after:transition-all after:duration-300 
+          hover:after:w-full">Our Products</h1>
+       <div className="flex flex-col">
+       <span className="flex items-center gap-2">
+         <Image 
+            src="/VideoCall.png"
+            alt="Video call" 
+            width={40} 
+            height={40} 
+            priority 
+         />
+         <Link href="/video_call" className="relative inline-block text-black 
+          after:content-[''] after:absolute after:left-1/2 after:-translate-x-1/2 after:bottom-0 
+          after:w-0 after:h-[2px] after:bg-black after:transition-all after:duration-300 
+          hover:after:w-full">Video Calling Web APP</Link>
+        
+       </span>
+       <span className="flex items-center">
+       <Image 
+            src="/FileShare.png"
+            alt="Video call" 
+            width={40} 
+            height={40} 
+            priority 
+            className="rounded-[25%] "
+         />
+          <Link href="/file_share" className="relative inline-block text-black 
+          after:content-[''] after:absolute after:left-1/2 after:-translate-x-1/2 after:bottom-0 
+          after:w-0 after:h-[2px] after:bg-black after:transition-all after:duration-300 
+          hover:after:w-full">File Sharing Web App</Link>
+       </span>
+       </div>
     </main>
   );
 }
