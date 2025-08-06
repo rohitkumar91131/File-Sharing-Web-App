@@ -1,21 +1,27 @@
 "use client"
 
-import { useContext, useRef } from "react";
+import { useContext, useRef, useState } from "react";
 import { createContext } from "react"
 
 type webRTCType = {
-    myConnectionRef : React.MutableRefObject<RTCPeerConnection | null>
-    peerConnectionRef : React.MutableRefObject<RTCPeerConnection | null>
-
+    peerConnectionRef : React.MutableRefObject<RTCPeerConnection | null>,
+    mySocketId : string | null ,
+    peerSocketId : string | null,
+    setMySocketId : React.Dispatch<React.SetStateAction<string | null>>,
+    setPeerSocketId : React.Dispatch<React.SetStateAction<string | null>>
 }
 const WebRTCConnectionContext  = createContext<webRTCType | undefined>(undefined);
 
 export const WebRtcConnectionProvider = ({children} : { children : React.ReactNode}) =>{
-    const myConnectionRef = useRef<RTCPeerConnection | null>(null);
     const peerConnectionRef = useRef<RTCPeerConnection | null >(null);
+    const [mySocketId , setMySocketId] = useState<string | null>(null);
+    const [peerSocketId , setPeerSocketId] = useState<string | null>(null);
     const value : webRTCType = {
-        myConnectionRef,
-        peerConnectionRef
+        peerConnectionRef,
+        mySocketId,
+        peerSocketId,
+        setMySocketId,
+        setPeerSocketId
     }
     return (
         <WebRTCConnectionContext.Provider value={value}>

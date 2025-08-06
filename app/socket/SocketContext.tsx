@@ -1,5 +1,5 @@
 "use client"
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { io, Socket } from 'socket.io-client'
 
 
@@ -11,7 +11,10 @@ type socketType = {
 const SocketContext = createContext<socketType | undefined>(undefined);
 
 export const SocketProvider = ({children} : { children : React.ReactNode}) =>{
-    const socket = io(process.env.NEXT_PUBLIC_BACKEND_API_URL);
+    const socket = useMemo(() => io(process.env.NEXT_PUBLIC_BACKEND_API_URL!, {
+        transports: ["websocket"],
+        autoConnect : false
+    }), []);
     const [socketId , setSocketId] = useState<string>("connecting-socket");
     const value : socketType ={
         socket,
