@@ -54,6 +54,15 @@ function page() {
           await peerConnectionRef.current.addIceCandidate(res?.candidate)
         })
 
+        async function checkBackend(){
+          const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/checkBackend`);
+          const data = await res.json();
+          console.log(data);
+          console.log(process.env.NEXT_PUBLIC_BACKEND_API_URL) ;
+        }
+
+        checkBackend();
+
       
         return ()=>{
             socket?.disconnect();
