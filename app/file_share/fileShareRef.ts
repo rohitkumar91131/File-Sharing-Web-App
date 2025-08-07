@@ -1,3 +1,4 @@
+import { read } from "fs";
 import { MutableRefObject } from "react";
 import { Socket } from "socket.io-client";
 type offerRes = {
@@ -95,4 +96,105 @@ export const acceptConnection = async(
     socket.emit("send-answer",{answer , peerSocketId} , (res : offerRes)=>{
         console.log(res);
     })
+}
+
+
+export const sendFile = (
+    peerConnectionRef : MutableRefObject<RTCPeerConnection | null>,
+    peerSocketId : string,
+    socket : Socket,
+    file : File
+
+)=>{
+    if(!peerConnectionRef.current) {
+        alert("Peer connection not ready");
+        return;
+    }
+    if(!file){
+        alert("File not selected")
+        return;
+    }
+    const fileDataChannel = peerConnectionRef.current.createDataChannel("fileDataChannel");
+    const chunksize = 1024 * 16;
+    let offset = 0;
+    const reader = new FileReader();
+    reader.onload = (e)=>{
+        if(e.target?.result){
+            fileDataChannel.send(e.target.result as ArrayBuffer);
+            offset += chunksize;
+            readSlice();
+        }
+    }
+
+    const readSlice = () =>{
+        const slice = file.slice(offset , offset + chunksize);
+        if(slice.size >0){
+            reader.readAsArrayBuffer(slice);   
+        }
+    }
+    fileDataChannel.onopen = () =>{
+
+    fileDataChannel.send(
+        JSON.stringify({
+            name : file.name,
+            size : file.size,
+            type : file.type,
+            isMetaData : true
+        })
+    )
+    readSlice();
+    }
+}
+type incomingFileMetaData = {
+    name : string,
+    type : string,
+    size : number,
+    isMetaData : boolean
+}
+let incomingData : incomingFileMetaData | null = null;
+let receivedBuffer : ArrayBuffer[]  = [];
+let receivedBytes = 0; 
+export const receiveFile = (
+    peerConnectionRef : MutableRefObject<RTCPeerConnection | null>,
+    socket : Socket,
+)=>{
+    if(!peerConnectionRef.current){
+        alert("peer connection not ready");
+        return;
+    }
+
+    peerConnectionRef.current.ondatachannel = (e) =>{
+        const channel = e.channel;
+        channel.onmessage = (e) =>{
+            if(typeof e.data === 'string'){
+                try{
+                    const meta : incomingFileMetaData = JSON.parse(e.data);
+                    if(meta.isMetaData){
+                        incomingData = meta;
+                        receivedBuffer = [],
+                        receivedBytes = 0;
+                        console.log("Receiveing file",meta.name)
+                    }
+                }
+                catch(err : any){
+                    console.log("Invalid metadata ",err.message)
+                }
+            }
+            else if (e.data instanceof ArrayBuffer && incomingData ){
+                receivedBuffer.push(e.data);
+                receivedBytes += e.data.byteLength;
+                console.log(`Received ${receivedBytes}/${incomingData.size} bytes`);
+                if (receivedBytes >= incomingData.size) {
+                    const blob = new Blob(receivedBuffer, { type: incomingData.type });
+                    const a = document.createElement("a");
+                    a.href = URL.createObjectURL(blob);
+                    a.download = incomingData.name;
+                    a.click();
+                    incomingData = null;
+                    receivedBuffer = [];
+                    receivedBytes = 0;
+                }
+            
+        }
+    }
 }

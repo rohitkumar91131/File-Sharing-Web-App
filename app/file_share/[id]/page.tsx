@@ -56,11 +56,18 @@ function Page({ params }: { params: Promise<Id> }) {
       setStatus(s ?? null);
     }
   },[status])
+  type sendFileEventType = {
+    success : boolean,
+    msg : string
+  }
   const handleDownload = () => {
     console.log("Clicked")
     setDownloadButton({
       name : "Sending the download request",
       isDisabled : true
+    })
+    socket?.emit("send-file",(peerSocketId),(res : sendFileEventType)=>{
+      console.log(res);
     })
   }
 
@@ -98,6 +105,11 @@ function Page({ params }: { params: Promise<Id> }) {
     socket.on("file-meta-data-sended",(data)=>{
       setReceivedFileMetaData(data);
     
+    })
+
+
+    socket.on("file-sended",id=>{
+      
     })
     return () => {
       socket.off('connect');   

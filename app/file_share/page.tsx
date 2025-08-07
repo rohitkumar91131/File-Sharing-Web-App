@@ -4,7 +4,7 @@ import Fileshare from "./fileshare"
 import { useSocket } from "../socket/SocketContext"
 import { useRouter } from "next/navigation";
 import { useConnection } from "./WebrtcContext";
-import { acceptConnection } from "./fileShareRef";
+import { acceptConnection, sendFile } from "./fileShareRef";
 import { useFile } from "./fileShareContext";
 
 
@@ -54,14 +54,22 @@ function page() {
           await peerConnectionRef.current.addIceCandidate(res?.candidate)
         })
 
+        socket.on("send-file",(id)=>{
+          sendFile(peerConnectionRef , peerSocketId  , socket , fileMetaData);
+
+        })
+
         async function checkBackend(){
           const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/checkBackend`);
           const data = await res.json();
           console.log(data);
           console.log(process.env.NEXT_PUBLIC_BACKEND_API_URL) ;
+          console.log(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/checkBackend`)
         }
 
         checkBackend();
+        console.log(process.env.NEXT_PUBLIC_BACKEND_API_URL) ;
+        console.log(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/checkBackend`)
 
       
         return ()=>{
