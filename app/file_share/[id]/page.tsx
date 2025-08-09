@@ -1,9 +1,11 @@
 'use client'
 import { useSocket } from '@/app/socket/SocketContext'
-import {use, useEffect, useState } from 'react'
+import {MutableRefObject, use, useEffect, useState } from 'react'
 import { useConnection } from '../WebrtcContext'
-import { startConnection } from '../fileShareRef'
+import { acceptConnection, sendFile, sendFileMetaData, startConnection } from '../fileShareRef'
 import { isBuiltin } from 'module'
+import { Mutable } from 'next/dist/client/components/router-reducer/router-reducer-types'
+import { useFile } from '../fileShareContext'
 
 type Id = {
   id: string
@@ -37,7 +39,7 @@ function Page({ params }: { params: Promise<Id> }) {
   const { id } = use(params)
   const [clicked, setClicked] = useState(false)
   const { socket } = useSocket();
-  const { peerConnectionRef ,mySocketId  , setMySocketId,peerSocketId , setPeerSocketId} = useConnection();
+  const { peerConnectionRef ,mySocketId  , setMySocketId,peerSocketId , setPeerSocketId , dataChannelRef} = useConnection();
   const [status , setStatus] = useState<string | null>(null);
   const [downloadbutton , setDownloadButton] = useState({
     name : "Download",
@@ -47,7 +49,11 @@ function Page({ params }: { params: Promise<Id> }) {
     name : "",
     size : 0,
     type : ""
-  })
+  });
+  const {fileMetaData , setFileMetaData} = useFile();
+  useEffect(()=>{
+    console.log(fileMetaData)
+  },[fileMetaData])
   useEffect(()=>{
     if(!peerConnectionRef.current) return;
     peerConnectionRef.current.onconnectionstatechange = ()=>{
@@ -60,15 +66,19 @@ function Page({ params }: { params: Promise<Id> }) {
     success : boolean,
     msg : string
   }
-  const handleDownload = () => {
+  const handleDownload = (
+    peerConnectionRef : MutableRefObject<RTCPeerConnection | null>,
+    dataChannelRef : MutableRefObject<RTCDataChannel | null>
+  ) => {
     console.log("Clicked")
     setDownloadButton({
       name : "Sending the download request",
       isDisabled : true
     })
-    socket?.emit("send-file",(peerSocketId),(res : sendFileEventType)=>{
-      console.log(res);
-    })
+    sendFile(peerConnectionRef , dataChannelRef);
+    // socket?.emit("send-file",(peerSocketId),(res : sendFileEventType)=>{
+    //   console.log(res);
+    // })
   }
 
   useEffect(() => {
@@ -90,10 +100,9 @@ function Page({ params }: { params: Promise<Id> }) {
     })
     })
 
-    socket?.once("receive-answer",async(res)=>{
-      console.log(res);
-      if(!peerConnectionRef.current) return;
-      await peerConnectionRef.current.setRemoteDescription( new RTCSessionDescription(res.answer) )
+    socket?.on("receive-offer",async({offer ,peerSocketId})=>{
+      console.log(offer);
+      await acceptConnection(peerConnectionRef , peerSocketId , socket,offer,dataChannelRef , setReceivedFileMetaData);
     })
 
     socket.on("ice-candidate",async(res)=>{
@@ -114,20 +123,39 @@ function Page({ params }: { params: Promise<Id> }) {
     return () => {
       socket.off('connect');   
       socket.disconnect();
-      socket.off("receive-answer");
+      socket.off("receive-offer");
       socket.off("ice-candidate");
       socket.off("file-meta-data-sended")
     }
   }, [id]);
-  useEffect(()=>{
-    if(!peerSocketId || !socket) return;
-    startConnection(peerConnectionRef , peerSocketId , socket)
-  },[peerSocketId])
-
+  // useEffect(()=>{
+  //   if(!peerSocketId || !socket) return;
+  //   //startConnection(peerConnectionRef , peerSocketId , socket ,dataChannelRef )
+  // },[peerSocketId])
+  const handleSendFileMetaData = () =>{
+    console.log("Clicked")
+    if(!peerConnectionRef.current){
+      alert("Peer connection isnt ready yet");
+      return;
+    }
+    if(peerConnectionRef.current?.connectionState !== "connected"){
+      alert("Peer connection is "+ peerConnectionRef.current.connectionState);
+      return;
+    }
+    if(!dataChannelRef.current){
+      alert("Data channel isnt ready yet");
+      return;
+    }
+    if(dataChannelRef.current?.readyState !== "open"){
+      alert("Data channel is "+ dataChannelRef.current.readyState);
+      return;
+    }
+    dataChannelRef.current.send("send file metadata")
+  }
   return (
     <div className="h-[100dvh] w-[100dvw] flex flex-col items-center justify-center">
       <button
-        onClick={handleDownload}
+        onClick={() => handleDownload(peerConnectionRef, dataChannelRef)}
         disabled={downloadbutton?.isDisabled}
         className={`p-2 rounded-md border transition 
           ${clicked ? 'bg-red-500 cursor-not-allowed hover:cursor-not-allowed' : 'bg-green-500 cursor-pointer hover:bg-green-600'}
@@ -135,6 +163,7 @@ function Page({ params }: { params: Promise<Id> }) {
       >
         {downloadbutton ? downloadbutton?.name : "Download"}
       </button>
+      <button onClick={handleSendFileMetaData} className='!p-2 bg-red-500 rounded-md'>Send file metadata</button>
       <p>{JSON.stringify(receivedFileMetaData)}</p>
       <p>My socket Id :- {mySocketId}</p>
       <p>Peer Socket Id :- {peerSocketId && peerSocketId}</p>

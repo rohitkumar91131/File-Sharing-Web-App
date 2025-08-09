@@ -4,7 +4,7 @@ import Fileshare from "./fileshare"
 import { useSocket } from "../socket/SocketContext"
 import { useRouter } from "next/navigation";
 import { useConnection } from "./WebrtcContext";
-import { acceptConnection, sendFile } from "./fileShareRef";
+import { acceptConnection, sendFile, sendFileMetaData, startConnection,  } from "./fileShareRef";
 import { useFile } from "./fileShareContext";
 
 
@@ -14,9 +14,9 @@ type JoinRoomResponse = {
 }
 function page() {
     const {socket , socketId , setSocketId} = useSocket();
-    const { peerConnectionRef , mySocketId , setMySocketId ,peerSocketId , setPeerSocketId} = useConnection();
+    const { peerConnectionRef , mySocketId , setMySocketId ,peerSocketId , setPeerSocketId , dataChannelRef } = useConnection();
     const [status , setStatus] = useState();
-    const {fileMetaData} = useFile();
+    const {fileMetaData ,setFileMetaData} = useFile();
     useEffect(()=>{
       if(!socket) return
       if(!peerConnectionRef.current) return;
@@ -39,14 +39,21 @@ function page() {
         })
 
         socket?.on("got-peer-socket-id",(res)=>{
+          console.log(res);
           setPeerSocketId(res?.peerSocketId)
+          if(res.success){
+            startConnection(peerConnectionRef , res?.peerSocketId , socket ,dataChannelRef  , ()=>sendFileMetaData(peerConnectionRef , dataChannelRef, fileMetaData));
+          }
         })
 
-
-        socket?.on("receive-offer",async({offer ,peerSocketId})=>{
-          console.log(offer);
-          await acceptConnection(peerConnectionRef , peerSocketId , socket,offer)
+        socket?.once("receive-answer",async(res)=>{
+          console.log(res);
+          if(!peerConnectionRef.current) return;
+          await peerConnectionRef.current.setRemoteDescription( new RTCSessionDescription(res.answer) )
         })
+    
+
+
 
         socket.once("ice-candidate",async(res)=>{
           console.log(res);
@@ -54,10 +61,6 @@ function page() {
           await peerConnectionRef.current.addIceCandidate(res?.candidate)
         })
 
-        socket.on("send-file",(id)=>{
-          sendFile(peerConnectionRef , peerSocketId  , socket , fileMetaData);
-
-        })
 
         async function checkBackend(){
           const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_API_URL}/checkBackend`);
@@ -75,7 +78,7 @@ function page() {
         return ()=>{
             socket?.disconnect();
             socket?.off("got-peer-socket-id");
-            socket?.off("receive-offer");
+            socket?.off("receive-answer");
             socket.off("ice-candidate");
             socket.off("get-file-metadata");
         }

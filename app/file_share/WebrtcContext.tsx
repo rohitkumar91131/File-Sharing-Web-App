@@ -1,6 +1,6 @@
 "use client"
 
-import { useContext, useRef, useState } from "react";
+import { MutableRefObject, useContext, useRef, useState } from "react";
 import { createContext } from "react"
 
 type webRTCType = {
@@ -8,7 +8,8 @@ type webRTCType = {
     mySocketId : string | null ,
     peerSocketId : string | null,
     setMySocketId : React.Dispatch<React.SetStateAction<string | null>>,
-    setPeerSocketId : React.Dispatch<React.SetStateAction<string | null>>
+    setPeerSocketId : React.Dispatch<React.SetStateAction<string | null>>,
+    dataChannelRef : MutableRefObject<RTCDataChannel | null>
 }
 const WebRTCConnectionContext  = createContext<webRTCType | undefined>(undefined);
 
@@ -16,12 +17,14 @@ export const WebRtcConnectionProvider = ({children} : { children : React.ReactNo
     const peerConnectionRef = useRef<RTCPeerConnection | null >(null);
     const [mySocketId , setMySocketId] = useState<string | null>(null);
     const [peerSocketId , setPeerSocketId] = useState<string | null>(null);
+    const dataChannelRef  = useRef<RTCDataChannel | null>(null);
     const value : webRTCType = {
         peerConnectionRef,
         mySocketId,
         peerSocketId,
         setMySocketId,
-        setPeerSocketId
+        setPeerSocketId,
+        dataChannelRef
     }
     return (
         <WebRTCConnectionContext.Provider value={value}>
