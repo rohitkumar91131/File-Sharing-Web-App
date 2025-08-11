@@ -70,15 +70,27 @@ function Page({ params }: { params: Promise<Id> }) {
     peerConnectionRef : MutableRefObject<RTCPeerConnection | null>,
     dataChannelRef : MutableRefObject<RTCDataChannel | null>
   ) => {
-    console.log("Clicked")
-    setDownloadButton({
-      name : "Sending the download request",
-      isDisabled : true
-    })
-    sendFile(peerConnectionRef , dataChannelRef);
-    // socket?.emit("send-file",(peerSocketId),(res : sendFileEventType)=>{
-    //   console.log(res);
-    // })
+     if(!peerConnectionRef.current){
+      alert("peer connection isnt ready yet");
+      return;
+     }
+     if(peerConnectionRef.current.connectionState !== "connected"){
+      alert("Peer connection is "+peerConnectionRef.current.connectionState);
+      return;
+     }
+     if(!dataChannelRef.current){
+      alert("Data channel isnt ready yet");
+      return
+     }
+     if(dataChannelRef.current?.readyState !== "open"){
+      alert("Data channel is "+ dataChannelRef.current?.readyState);
+      return;
+     }
+     dataChannelRef.current.send("Send file");
+     setDownloadButton({
+      name : "Downloading....",
+      isDisabled : false
+     })
   }
 
   useEffect(() => {

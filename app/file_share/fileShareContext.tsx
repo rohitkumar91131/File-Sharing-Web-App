@@ -1,5 +1,5 @@
 'use client'
-import { createContext, Dispatch, useContext, useState } from "react";
+import { createContext, Dispatch, MutableRefObject, useContext, useRef, useState } from "react";
 
 type FileType = {
   name : string,
@@ -8,27 +8,23 @@ type FileType = {
 }
 
 type FileContextType = {
-  files : string[],
-  addFile : (file : string) =>void,
+  file : MutableRefObject<File | null>
   fileMetaData : FileType,
   setFileMetaData : Dispatch<React.SetStateAction<FileType>>
 }
 const FileShareContext = createContext<FileContextType | undefined>(undefined);
 
 export const FileShareProvider = ({ children }: { children: React.ReactNode }) => {
-  const [files , setFile ] = useState<string[]>([]);
+  const file = useRef<File | null>(null);
   const [ fileMetaData , setFileMetaData ] = useState<FileType>({
     name : "",
     size : 0,
     type : ""
   })
-  const addFile = (file : string) =>{
-    setFile(prev => ([ ...prev , file]))
-  }
 
   
     return (
-        <FileShareContext.Provider value={{ files , addFile , fileMetaData , setFileMetaData}}>
+        <FileShareContext.Provider value={{ file , fileMetaData , setFileMetaData}}>
           {children}
         </FileShareContext.Provider>
       )

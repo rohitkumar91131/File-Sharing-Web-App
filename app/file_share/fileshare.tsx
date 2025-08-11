@@ -9,7 +9,7 @@ function Fileshare() {
   const { socket, socketId } = useSocket();
   const [isCopied, setIsCopied] = useState(false);
   const { peerConnectionRef, dataChannelRef, mySocketId, setMySocketId, peerSocketId } = useConnection();
-  const { fileMetaData, setFileMetaData } = useFile();
+  const { file  ,fileMetaData, setFileMetaData } = useFile();
   
   const [url, setUrl] = useState("");
 
@@ -27,16 +27,18 @@ function Fileshare() {
     console.log("File meta data change")
   },[fileMetaData])
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    console.log(file)
+    const inputFile = e.target.files?.[0];
+    if (!inputFile) return;
+    console.log(inputFile)
     const metadata = {
-      name: file.name,
-      type: file.type,
-      size: file.size
+      name: inputFile.name,
+      type: inputFile.type,
+      size: inputFile.size
     };
 
     setFileMetaData(metadata);
+    file.current = inputFile;
+    console.log(file.current);
     sendFileMetaData(peerConnectionRef, dataChannelRef, metadata );
   };
 
@@ -82,6 +84,7 @@ function Fileshare() {
       <p>My socket Id :- {mySocketId}</p>
       <p>Peer Socket Id :- {peerSocketId || "-"}</p>
       <p>Peer connection state :- {peerConnectionRef.current?.connectionState || "-"}</p>
+      <p>{JSON.stringify(file?.current?.name )}</p>
     </div>
   );
 }

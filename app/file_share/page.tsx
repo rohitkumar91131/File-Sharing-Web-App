@@ -16,7 +16,7 @@ function page() {
     const {socket , socketId , setSocketId} = useSocket();
     const { peerConnectionRef , mySocketId , setMySocketId ,peerSocketId , setPeerSocketId , dataChannelRef } = useConnection();
     const [status , setStatus] = useState();
-    const {fileMetaData ,setFileMetaData} = useFile();
+    const {file ,fileMetaData ,setFileMetaData} = useFile();
     useEffect(()=>{
       if(!socket) return
       if(!peerConnectionRef.current) return;
@@ -34,7 +34,7 @@ function page() {
           if(!id){
             return;
           }
-          setSocketId(id);
+          setSocketId(id);file
           setMySocketId(id);
         })
 
@@ -42,7 +42,7 @@ function page() {
           console.log(res);
           setPeerSocketId(res?.peerSocketId)
           if(res.success){
-            startConnection(peerConnectionRef , res?.peerSocketId , socket ,dataChannelRef  , ()=>sendFileMetaData(peerConnectionRef , dataChannelRef, fileMetaData));
+            startConnection(peerConnectionRef , res?.peerSocketId , socket ,dataChannelRef  , ()=>sendFileMetaData(peerConnectionRef , dataChannelRef, fileMetaData) , file,()=>sendFile(peerConnectionRef,dataChannelRef,file));
           }
         })
 

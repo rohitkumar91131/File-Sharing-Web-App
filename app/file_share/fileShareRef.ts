@@ -1,5 +1,7 @@
+import { channel } from "diagnostics_channel";
 import { read } from "fs";
 import { Mutable } from "next/dist/client/components/router-reducer/router-reducer-types";
+import { off } from "process";
 import { MutableRefObject } from "react";
 import { Socket } from "socket.io-client";
 type offerRes = {
@@ -43,7 +45,14 @@ export const startConnection = async(
     peerSocketId : string ,
     socket : Socket,
     dataChannelRef : MutableRefObject<RTCDataChannel | null>,
-    sendFileMetaData : () => void
+    sendFileMetaData : () => void,
+    file : MutableRefObject<File | null>,
+    sendFile : (
+        peerConnectionRef: MutableRefObject<RTCPeerConnection | null>,
+        dataChannelRef: MutableRefObject<RTCDataChannel | null>,
+        file : MutableRefObject<File | null>
+    ) => void
+ 
 )=>{
     await createPeerConnection(peerConnectionRef  , peerSocketId , socket);
     if(!peerConnectionRef.current || !peerSocketId || !socket){
@@ -52,7 +61,7 @@ export const startConnection = async(
     }
     const channel = peerConnectionRef.current.createDataChannel("fileChannel");
     dataChannelRef.current = channel;
-    channel.onopen = () => console.log("Data channel open");
+    //channel.onopen = () => console.log("Data channel open");
     const offer = await peerConnectionRef.current.createOffer();
     peerConnectionRef.current.setLocalDescription(offer);
 
@@ -67,8 +76,14 @@ export const startConnection = async(
            //alert("send file metadata");
             sendFileMetaData();
         }
+        if(e.data === "Send file"){
+            console.log(file?.current)
+            sendFile(peerConnectionRef , dataChannelRef , file);
+        }
 
     }
+
+ 
 
     socket.emit("send-offer",({peerSocketId , offer }) ,(res : offerRes)=>{
         console.log(res);
@@ -104,14 +119,19 @@ export const acceptConnection = async(
     peerConnectionRef.current.ondatachannel = (e) =>{
         const channel = e.channel;
         dataChannelRef.current = e.channel;
-        console.log(dataChannelRef.current)
+        console.log(dataChannelRef.current);
+        channel.onopen = () =>{
+            receiveFile(peerConnectionRef , dataChannelRef)
+        }
         channel.onmessage = (e)=>{
+            //console.log(e.data)
             if(typeof e.data === "string"){
                 const msg = JSON.parse(e.data);
+                //console.log("J",msg)
                 if(msg.type === "metaData"){
                     const msg = JSON.parse(e.data);
                     //alert("You sent a file metadata")
-                    console.log(msg);
+                    //console.log(msg);
                     const { name , type , size } = msg?.fileMetaData
                     console.log(name , type , size);
                     setReceivedFileMetaData({
@@ -122,6 +142,7 @@ export const acceptConnection = async(
                 }
             }
 
+
         }
     }
 }
@@ -130,6 +151,7 @@ export const acceptConnection = async(
 export const sendFile = (
     peerConnectionRef : MutableRefObject<RTCPeerConnection |null>,
     dataChannelRef : MutableRefObject<RTCDataChannel | null>,
+    file : MutableRefObject<File | null>
 )=>{
     if(!peerConnectionRef.current){
         alert("Peer connection isnt ready yet");
@@ -139,15 +161,93 @@ export const sendFile = (
         alert("Data channel not formed yet");
         return;
     }
-    
+    if(dataChannelRef.current.readyState !== "open"){
+        alert("Data channel is "+ dataChannelRef.current.readyState);
+        return;
+    }
+    console.log(file.current);
+    const channel  : RTCDataChannel= dataChannelRef.current
+    if(!file.current){
+        alert("Select a file");
+        return;
+    }
+    const actualFile : File = file.current;
+    let chunksize = 16 * 1024;
+    let offset = 0;
+    let reader = new FileReader();
+    function readSlide ( o : number ){
+        const slice = actualFile.slice(o , o+chunksize);
+        console.log(slice);
+        reader.readAsArrayBuffer(slice);
+    }
+    reader.onload = (e) =>{
+        const buffer = e.target!.result as ArrayBuffer;
+        if(channel.bufferedAmount  > 16_000_000){
+            setTimeout(() => reader.onload!(e), 10);
+            return;
+        }
 
-    if (dataChannelRef.current.readyState === "open") {
-        //dataChannelRef.current.send("Hi from receiver");
+        channel.send(buffer);
+        offset += buffer.byteLength;
+        console.log(buffer);
+        console.log(offset);
 
-      } else {
-        alert("Data channel not open yet");
-      }
+        if(offset < actualFile.size){
+            readSlide(offset);
+        }
+       else {
+         channel.send(
+            JSON.stringify({
+                type : "file",
+                msg : "EOF",
+                filename : actualFile.name
+            })
+         )
+         console.log("File sent successfully")
+       }
+    }
+    readSlide(0)
 }
+
+let receivedBuffers: ArrayBuffer[] = [];
+export const receiveFile = (
+    peerConnectionRef: MutableRefObject<RTCPeerConnection | null>,
+    dataChannelRef: MutableRefObject<RTCDataChannel | null>
+) => {
+    if (!peerConnectionRef.current) {
+        alert("Peer connection isn't ready yet for receiving file");
+        return;
+    }
+    if (!dataChannelRef.current) {
+        alert("Data channel isn't formed yet for receiving file");
+        return;
+    }
+    if (dataChannelRef.current.readyState !== "open") {
+        alert("Data channel state is " + dataChannelRef.current.readyState);
+        return;
+    }
+
+    dataChannelRef.current.onmessage = (e) =>{
+        let chunk = e.data;
+        if(chunk instanceof ArrayBuffer){
+            //console.log("Receiving array buffer", e.data);
+            receivedBuffers.push(e.data);
+        }
+        //console.log(receivedBuffers)
+        if(typeof e.data === "string"){
+            const msg = JSON.parse(e.data);
+            if(msg.type === "file" && msg.msg === "EOF"){
+                console.log(msg)
+                const blob = new Blob(receivedBuffers);
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download=msg.filename,
+                link.click();
+                alert("File downloaded successfully")
+            }
+        }
+    }
+};
 
 export const sendFileMetaData = (
     peerConnectionRef : MutableRefObject<RTCPeerConnection | null>,
